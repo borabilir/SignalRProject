@@ -10,23 +10,89 @@
     $(document).ready(() => {
 
         var connection = new signalR.HubConnectionBuilder()
-        .withUrl("https://localhost:44377/MyHub")
         .configureLogging(signalR.LogLevel.Information)
+        .withAutomaticReconnect([1000,3000,3000,5000])
+        .withUrl("https://localhost:44377/MyHub")
         .build();
+
+        statusShow();
+        start();
+
+        //Functions
+        function statusShow(){
+            $("#conStatus").text(connection.connectionState);
+        }
+
+        function start(){
+            connection.start().then(() => {
+                statusShow();
+                $("#loading").hide();
+                connection.invoke("GetNames");
+
+            }).catch((err) => {
+                console.log(err);
+                setTimeout(() => start(), 2000)
+            });
+        }
 
         $("#conStatus").text(connection.connectionState);
 
+        //Subscribes
         connection.start().then(() => {
-            $("#conStatus").text(connection.connectionState);
+            statusShow();
+            $("#loading").hide();
+
         }).catch((err) => { console.log(err) });
 
+        connection.onreconnecting(err => {
+            $("#loading").show();
+            statusShow();
+            console.log("onreconnecting: " + err);
+        });
+
+        connection.onreconnected(connectionId => {
+            $("#loading").hide();
+            statusShow();
+            console.log("connectionId: " + connectionId);
+        });
+
+        connection.onclose(() => {
+            $("#loading").hide();
+            statusShow();
+            start();
+        });
+
+        connection.on("ReceiveClientCount", (clientCount) =>{
+            $("#clientCount").text(clientCount);
+        });
+
+        connection.on("Notify", (countText) => {
+            $("#notify").html(`<div class="alert alert-success">${countText}</div>`)
+        });
+
+        connection.on("Error", (errorText) => {
+            alert(errorText);
+        });
+
+        connection.on("ReceiveName",(name) => {
+            $("#nameList").append(`<li class="list-group-item">${name}</li>`);
+        })
+
+        connection.on("ReceiveNames",(names) => {
+            $("#nameList").empty();
+
+            names.forEach((item, index) => {
+                $("#nameList").append(`<li class="list-group-item">${item}</li>`);
+            })
+        });
+
+        //Clicks
         $("#btnNameSave").click(() => {
             connection.invoke("SendName", $("#txtName").val()).catch((err) => console.log(err))
         })
 
-        connection.on("ReceiveName",(name) => {
-            console.log(name);
-        })
+     
+
 
     })
 
@@ -36,12 +102,29 @@
 <div class="row">
 
     <div class="col-md-8 offset-2">
-    <input class="form-control" type="text" id="txtName" />
-    <hr />
-    <button class="btn btn-primary" id="btnNameSave">İsim Kaydet</button>
-        <div class="alert alert-info">
-            Bağlantı Durumu: <strong id="conStatus">Deneme</strong>
+        <input class="form-control" type="text" id="txtName" />
+        <hr />
+        <button class="btn btn-primary" id="btnNameSave">İsim Kaydet</button>
+        
+        <div class="alert alert-info" style="height:60px; margin-top:20px">
+            <div class="float-start">
+                Bağlantı Durumu: <strong id="conStatus"></strong>
+                Client Sayısı: <strong id="clientCount"></strong>
+            </div>
+
+            <div class="float-end">
+                <div id="loading" class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div class="clear-fix"></div>
         </div>
+            
+        <div id="notify"></div>
     </div>
+    <div class="col-md-8 offset-2">
+        <ul class="list-group" id="nameList"></ul>
+    </div>
+
 
 </div>
