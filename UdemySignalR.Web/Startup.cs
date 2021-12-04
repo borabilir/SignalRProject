@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using UdemySignalR.Web.Hubs;
 
 namespace UdemySignalR.Web
 {
@@ -24,6 +25,7 @@ namespace UdemySignalR.Web
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+            services.AddSignalR();
             services.AddMvc().AddRazorRuntimeCompilation();
         }
 
@@ -49,6 +51,8 @@ namespace UdemySignalR.Web
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHub<MyHub>("/MyHub");
+
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
